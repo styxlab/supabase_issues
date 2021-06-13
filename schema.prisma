@@ -1,0 +1,173 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Intro {
+  NONE
+  USER
+  PROJECT
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  role          Role      @default(USER)
+
+  plans         Plan[]
+  activities    Activity[]
+  accounts      Account[]
+  sessions      Session[]
+  projects      Project[]
+  tokens        Token[]
+  posts         Post[]
+}
+
+model Plan {
+  id                   String     @id @default(cuid())
+  userId               String     @unique
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+  stripeCustomerId     String?    @unique
+  stripeSubscriptionId String?    @unique
+  stripePriceId        String?
+  stripePeriodEnd      DateTime?
+  user                 User       @relation(fields: [userId], references: [id])
+}
+
+model Activity {
+  id          String   @id @default(cuid())
+  userId      String
+  projects    Int      @default(1)
+  tokens      Int      @default(0)
+  posts       Int      @default(0)
+  published   Int      @default(0)
+  domains     Int      @default(0)
+  images      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model Account {
+  id                 String    @id @default(cuid())
+  userId             String
+  providerType       String
+  providerId         String
+  providerAccountId  String
+  refreshToken       String?
+  accessToken        String?
+  accessTokenExpires DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  user               User      @relation(fields: [userId], references: [id])
+
+  @@unique([providerId, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  expires      DateTime
+  sessionToken String   @unique
+  accessToken  String   @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id])
+}
+
+model VerificationRequest {
+  id         String   @id @default(cuid())
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier, token])
+}
+
+model Editor {
+  id        Int      @id @default(autoincrement())
+  title     String?
+  content   String?
+  published Boolean  @default(false)
+  createdAt DateTime @default(now()) @map(name: "created_at")
+  updatedAt DateTime @default(now()) @map(name: "updated_at")
+}
+
+model Project {
+  id           String   @id @default(cuid())
+  userId       String
+  name         String
+  suffix       Int?     @default(0)
+  title        String?  @default("Pure Theme")
+  description  String?  @default("Own your own words. Inspire your audience.")
+  lang         String?  @default("en")
+  domain       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  visitedAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id])
+
+  tokens Token[]
+  posts Post[]
+
+  @@unique([name, suffix])
+}
+
+model Token {
+  id        String   @default(cuid())
+  userId    String
+  projectId String
+  name      String?
+  bearer    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+  project   Project  @relation(fields: [projectId], references: [id])
+
+  @@id([id, userId])
+}
+
+model Post {
+  id          String    @default(cuid())
+  userId      String
+  projectId   String
+  title       String?
+  editordoc   Json?
+  slug        String?
+  html        String?
+  excerpt     String?
+  tags        String?
+  authors     String?
+  new         Boolean?  @default(true)
+  docCount    Int       @default(0)
+  published   Boolean   @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  intro       Intro     @default(NONE)
+  user        User      @relation(fields: [userId], references: [id])
+  project     Project   @relation(fields: [projectId], references: [id])
+
+  @@id([id, userId])
+  @@unique([slug, projectId])
+}
